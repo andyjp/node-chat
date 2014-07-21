@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      #sendMessage { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      #sendMessage input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      #sendMessage button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li.mine { background: #eee; }
+    </style>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <div id="typing"></div>
+    <form id="sendMessage" action="">
+      <input id="m" autocomplete="off" /><button>Send</button>
+    </form>
+    <div id="dialog" title="Input Chat Name">
+        <form id="chatName" action="">
+            <input id="name" type="text" name="name" placeholder="Chat Name" />
+            <button>Submit</button>
+        </form>
+    </div>
+  </body>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/themes/smoothness/jquery-ui.css" />
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
+    <script>
+        $(function() {
+            $("#dialog").dialog({ modal: true });
+            var socket = '';
+            
+            // When entering chat name
+            $("#chatName").submit(function() {
+                var name = $("#name").val();
+                socket = io();
+                socket.emit('user connected', name);
+                socket.on('chat message', function(msg){
+                    $('#messages').append($('<li>').text(msg));
+                });
+                socket.on('user typing', function(name) {
+                    $('#typing').html(name + ' is typing');
+                });
+                socket.on('stop typing', function(name) {
+                    $('#typing').html('');
+                });
+                socket.on('disconnect', function(){
+                    socket.emit('user disconnected', name);
+                });
+                $("#dialog").dialog("close");
+                return false;
+            });
+            
+            // Sending a new chat message
+            $('#sendMessage').submit(function(){
+                socket.emit('chat message', $("#name").val() + ': ' + $('#m').val());
+                $('#messages').append($('<li class="mine">').text($('#m').val()));
+                $('#m').val('');
+                return false;
+            });
+            
+            // When typing in the message field
+            var typeTimeout;
+            $("#m").keydown(function(){
+                socket.emit('user typing', $("#name").val());
+                if (typeTimeout != undefined) {
+                    clearTimeout(typeTimeout);
+                }
+            });
+            $("#m").keyup(function(){
+                typeTimeout = setTimeout(function() { socket.emit('stop typing', $("#name").val()); }, 1000);
+            });
+        });
+    </script>
+</html>
